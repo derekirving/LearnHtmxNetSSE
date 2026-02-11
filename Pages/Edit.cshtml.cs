@@ -18,7 +18,7 @@ public class EditModel : PageModel
     public new string Content { get; set; } = string.Empty;
     public string Username { get; set; } = string.Empty;
 
-    public IActionResult OnGet(string id, string user)
+    public async Task<IActionResult> OnGetAsync(string id)
     {
         if (string.IsNullOrEmpty(id))
         {
@@ -26,7 +26,7 @@ public class EditModel : PageModel
         }
 
         PageId = id;
-        Username = user ?? "Anonymous";
+        Username = "EditorUser";
 
         // In a real app, fetch from database
         var pages = new Dictionary<string, (string Title, string Content)>
@@ -42,6 +42,12 @@ public class EditModel : PageModel
         {
             Title = pageData.Title;
             Content = pageData.Content;
+            var success = await _lockService.LockPage(id, Username);
+            if (!success)
+            {
+                // add warning
+                return RedirectToPage("/Index");
+            }
         }
         else
         {
@@ -51,14 +57,16 @@ public class EditModel : PageModel
         return Page();
     }
 
+    public async Task<IActionResult> OnGetCancelAsync(string id)
+    {
+        await _lockService.UnlockPage(id);
+        return RedirectToPage("/Index");
+    }
+
     public async Task<IActionResult> OnPost(string id, string title, string content)
     {
-        // In a real app, save to database
-        await Task.CompletedTask;
-        
-        // Unlock the page
+        // Save Data
         await _lockService.UnlockPage(id);
-
         return RedirectToPage("/Index");
     }
 }

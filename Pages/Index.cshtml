@@ -4,7 +4,6 @@
     ViewData["Title"] = "Page Management";
 }
 
-
 <div class="container">
     <h1>
         Page Management System
@@ -38,11 +37,8 @@
                         <span class="locked-by-name"></span>
                     </div>
                 </div>
-                <a href="/Edit/@pageItem.Id"
-                   class="btn edit-btn"
-                   onclick="return handleEditClick(event, '@pageItem.Id')">
-                    Edit Page
-                </a>
+                <a class="btn edit-btn" asp-page="/Edit" asp-route-id="@pageItem.Id">Edit Page</a>
+
             </div>
         }
     </div>
@@ -81,29 +77,6 @@
                 if (titleIcon) titleIcon.style.display = 'none';
                 if (btn) btn.disabled = false;
             }
-        }
-
-        function handleEditClick(event, pageId) {
-            event.preventDefault();
-            const username = document.getElementById('username').value || 'Anonymous';
-
-            fetch('/api/page-locks/' + pageId + '/lock', {
-                method: 'POST',
-                headers: {'X-User-Id': username}
-            })
-                .then(response => {
-                    if (response.ok) {
-                        window.location.href = '/Edit/' + pageId + '?user=' + encodeURIComponent(username);
-                    } else {
-                        alert('This page is currently being edited by someone else.');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error locking page:', error);
-                    alert('Error locking page. Please try again.');
-                });
-
-            return false;
         }
 
         document.body.addEventListener('htmx:sseError', function (evt) {
