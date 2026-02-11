@@ -1,0 +1,113 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Page Management";
+}
+
+
+<div class="container">
+    <h1>
+        Page Management System
+        <span class="status-indicator" id="connection-status"></span>
+    </h1>
+
+    <div class="user-info">
+        <label for="username">Your Name:</label>
+        <input type="text" id="username" value="User-@Guid.NewGuid().ToString()[..8]"/>
+    </div>
+
+    <div class="pages-grid"
+         hx-ext="sse"
+         sse-connect="/api/page-locks/stream">
+        @foreach (var pageItem in Model.Pages)
+        {
+            <div class="page-card"
+                 id="card-@pageItem.Id"
+                 data-page-id="@pageItem.Id"
+                 hx-ext="sse"
+                 sse-swap="page-locked,page-unlocked"
+                 hx-swap="none">
+                <h2>
+                    <span class="lock-icon-title" style="display: none;">🔒 </span>@pageItem.Title
+                </h2>
+                <p>@pageItem.Content</p>
+                <div class="lock-status">
+                    <span class="lock-icon">🔒</span>
+                    <div>
+                        <strong>Currently being edited by:</strong><br>
+                        <span class="locked-by-name"></span>
+                    </div>
+                </div>
+                <a href="/Edit/@pageItem.Id"
+                   class="btn edit-btn"
+                   onclick="return handleEditClick(event, '@pageItem.Id')">
+                    Edit Page
+                </a>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Handle SSE events via HTMX
+        document.body.addEventListener('htmx:sseMessage', function (evt) {
+            const data = JSON.parse(evt.detail.data);
+
+            if (data.type === 'connected') {
+                document.getElementById('connection-status').style.background = '#28a745';
+            } else if (data.type === 'page-locked') {
+                updateLock(data.pageId, data.lockedBy, true);
+            } else if (data.type === 'page-unlocked') {
+                updateLock(data.pageId, null, false);
+            }
+        });
+
+        function updateLock(pageId, lockedBy, isLocked) {
+            const card = document.getElementById('card-' + pageId);
+            if (!card) return;
+
+            const titleIcon = card.querySelector('.lock-icon-title');
+            const lockedBySpan = card.querySelector('.locked-by-name');
+            const btn = card.querySelector('.edit-btn');
+
+            if (isLocked) {
+                card.classList.add('locked');
+                if (titleIcon) titleIcon.style.display = 'inline';
+                if (lockedBySpan) lockedBySpan.textContent = lockedBy;
+                if (btn) btn.disabled = true;
+            } else {
+                card.classList.remove('locked');
+                if (titleIcon) titleIcon.style.display = 'none';
+                if (btn) btn.disabled = false;
+            }
+        }
+
+        function handleEditClick(event, pageId) {
+            event.preventDefault();
+            const username = document.getElementById('username').value || 'Anonymous';
+
+            fetch('/api/page-locks/' + pageId + '/lock', {
+                method: 'POST',
+                headers: {'X-User-Id': username}
+            })
+                .then(response => {
+                    if (response.ok) {
+                        window.location.href = '/Edit/' + pageId + '?user=' + encodeURIComponent(username);
+                    } else {
+                        alert('This page is currently being edited by someone else.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error locking page:', error);
+                    alert('Error locking page. Please try again.');
+                });
+
+            return false;
+        }
+
+        document.body.addEventListener('htmx:sseError', function (evt) {
+            document.getElementById('connection-status').style.background = '#dc3545';
+        });
+    </script>
+}

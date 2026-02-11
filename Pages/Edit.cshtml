@@ -1,0 +1,71 @@
+@page "/Edit/{id}"
+@model EditModel
+@{
+    ViewData["Title"] = "Edit " + Model.Title;
+}
+<div class="container">
+    <div class="editor-card">
+        <h1>Edit Page</h1>
+
+        <div class="lock-notice">
+            🔒 This page is locked for editing by <strong>@Model.Username</strong>
+        </div>
+
+        <form method="post">
+            <input type="hidden" name="id" value="@Model.PageId"/>
+
+            <div class="form-group">
+                <label for="title">Page Title</label>
+                <input type="text" id="title" name="title" value="@Model.Title" required/>
+            </div>
+
+            <div class="form-group">
+                <label for="content">Content</label>
+                <textarea id="content" name="content" required>@Model.Content</textarea>
+            </div>
+
+            <div class="button-group">
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+                <button type="button" class="btn btn-secondary" onclick="handleCancel('@Model.PageId')">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts
+{
+    <script>
+        let isUnlocking = false;
+
+        // Unlock page when leaving (but not when submitting the form)
+        window.addEventListener('beforeunload', function (e) {
+            if (!isUnlocking) {
+                // Use sendBeacon for DELETE request
+                const formData = new FormData();
+                formData.append('_method', 'DELETE');
+                navigator.sendBeacon('/api/page-locks/@Model.PageId', formData);
+            }
+        });
+
+        // Mark as unlocking when form is submitted normally
+        document.querySelector('form').addEventListener('submit', function () {
+            isUnlocking = true;
+        });
+
+        function handleCancel(pageId) {
+            isUnlocking = true;
+            // Unlock the page
+            fetch('/api/page-locks/' + pageId, {
+                method: 'DELETE'
+            })
+                .then(() => {
+                    window.location.href = '/';
+                })
+                .catch(error => {
+                    console.error('Error unlocking page:', error);
+                    // Still redirect even if unlock fails
+                    window.location.href = '/';
+                });
+        }
+    </script>
+}
